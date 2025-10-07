@@ -90,8 +90,12 @@ class SkinCeuticalsCrawler(CatalogCrawler):
                 product_categories.append(category)
         return product_categories
 
+    def _clean_text(self, text):
+        return text.strip().replace("\n", "").replace("\t", "").replace("\r", "")
+
     def _collect_product_details_from_soup(self, soup, product_url):
         product_name = soup.find("h1", class_="c-product-main__name").text
+        product_name = self._clean_text(product_name)
         price_spans = soup.find_all("span", class_="c-product-price__value")
         price = None
         for price_span in price_spans:
@@ -126,8 +130,8 @@ class SkinCeuticalsCrawler(CatalogCrawler):
             manufacturer_name="",
             current_price=price,
             category=product_categories,
-            short_description=short_description.split("...")[0],
-            description=full_description,
+            short_description=self._clean_text(short_description.split("...")[0]),
+            description=self._clean_text(full_description),
             meta_description="",
             purchase_requirements="",
             images=images,
