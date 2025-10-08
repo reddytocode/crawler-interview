@@ -85,6 +85,7 @@ class SkinCeuticalsCrawler(CatalogCrawler):
     def _get_product_categories(self, soup, product_name):
         category = soup.find("div", class_="l-pdp__top-inner").text
         cleaned_category = category.split("  ")
+        cleaned_category = [s.replace("\n", "") for s in cleaned_category]
         start_indexing = False
         product_categories = []
         for category in cleaned_category:
@@ -93,12 +94,27 @@ class SkinCeuticalsCrawler(CatalogCrawler):
                 continue
             elif start_indexing and category.lower() == product_name.lower():
                 break
-            if start_indexing and category:
-                product_categories.append(category)
+            if start_indexing and category and len(category.strip()) > 0:
+                product_categories.append(category.strip())
         return product_categories
 
     def _clean_text(self, text):
-        return text.strip().replace("\n", "").replace("\t", "").replace("\r", "")
+        cleaned_text = (
+            text.strip().replace("\n", "").replace("\t", "").replace("\r", "")
+        )
+        cleaned_text = "".join(
+            cleaned_text.split("  ")
+        )  # Hack to remove long empty spaces
+        return cleaned_text.split("...")[0].strip()
+
+    def _clean_short_description(self, text):
+        return (
+            text.split("...")[0]
+            .strip()
+            .replace("\n", "")
+            .replace("\t", "")
+            .replace("\r", "")
+        )
 
     def _collect_product_details_from_soup(self, soup, product_url):
         product_name = soup.find("h1", class_="c-product-main__name").text
@@ -116,7 +132,9 @@ class SkinCeuticalsCrawler(CatalogCrawler):
         short_description = soup.find(
             "p", class_="c-product-main__short-description"
         ).text
+        short_description = self._clean_short_description(short_description)
         full_description = soup.find("div", "c-content-tile__description").text
+        full_description = self._clean_text(full_description)
         image_alternatives = soup.find(
             "div", class_="c-product-detail-image__alternatives"
         )
@@ -125,7 +143,7 @@ class SkinCeuticalsCrawler(CatalogCrawler):
             images.append(RawCrawledProductImage(data=image["src"], alt=image["alt"]))
 
         if uom := soup.find("span", class_="c-variations-carousel__value"):
-            uom = uom.text
+            uom = self._clean_text(uom.text)
 
         crawled_product = RawCrawledProduct(
             supplier_sku="",
@@ -137,8 +155,8 @@ class SkinCeuticalsCrawler(CatalogCrawler):
             manufacturer_name="",
             current_price=price,
             category=product_categories,
-            short_description=self._clean_text(short_description.split("...")[0]),
-            description=self._clean_text(full_description),
+            short_description=short_description,
+            description=full_description,
             meta_description="",
             purchase_requirements="",
             images=images,
