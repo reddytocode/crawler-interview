@@ -9,9 +9,14 @@ Technical Challenge - Aestheticart Supplier Crawler
 
 ## Installation
 
-- Run
+- Run scrapper
 ```bash
 uv run main.py
+```
+
+- Run scrapper on mocked "All products" page, but fetching each product (73 products)
+```bash
+uv run mocked_main.py
 ```
 
 - Run tests:
