@@ -17,11 +17,7 @@ logging.basicConfig(
 
 async def main():
     crawler = SkinCeuticalsCrawler()
-    products = await crawler.run_list_of_all_products_mocked()
-    for product in products:
-        from pprint import pprint
-
-        pprint(product.model_dump())
+    await crawler.run_list_of_all_products_mocked()
 
 
 asyncio.run(main())

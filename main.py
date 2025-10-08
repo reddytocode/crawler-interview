@@ -10,9 +10,7 @@ logging.basicConfig(
 
 async def main():
     crawler = SkinCeuticalsCrawler()
-    product_details = await crawler.run()
-    for product in product_details:
-        print(product.model_dump_json())
+    await crawler.run()
 
 
 asyncio.run(main())
