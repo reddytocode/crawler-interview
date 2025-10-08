@@ -1,5 +1,6 @@
-from bs4 import BeautifulSoup
 import pytest
+from bs4 import BeautifulSoup
+
 from crawler import SkinCeuticalsCrawler
 from models import RawCrawledProduct
 

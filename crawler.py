@@ -1,13 +1,13 @@
 import logging
 from abc import ABC, abstractmethod
+from pprint import pformat
 from typing import List
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 
 from models import RawCrawledProduct, RawCrawledProductImage, SupplierName
-
-from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,7 @@ class SkinCeuticalsCrawler(CatalogCrawler):
         self.base_url = "https://www.skinceuticals.com/"
 
     async def _fetch(self, url: str) -> str:
+        logger.info(f"Fetching {url}")
         browsers = ["firefox", "webkit"]
         async with async_playwright() as p:
             for browser_type in browsers:
@@ -54,7 +55,11 @@ class SkinCeuticalsCrawler(CatalogCrawler):
                 html = await page.content()
 
                 if "Just a moment" in html:
+                    logger.info(
+                        "Trying with %s failed, trying with next browser", browser_type
+                    )
                     continue
+                logger.info("Successfully fetched %s using %s", url, browser_type)
                 await browser.close()
                 return html
 
@@ -63,6 +68,7 @@ class SkinCeuticalsCrawler(CatalogCrawler):
 
     def _get_product_urls(self, soup):
         products = []
+        logger.info("Getting product urls from 'All Products' page")
 
         for tile in soup.find_all("div", class_="c-product-tile__caption-inner"):
             title = tile.select_one(".c-product-tile__name")
@@ -71,8 +77,9 @@ class SkinCeuticalsCrawler(CatalogCrawler):
                 url = urljoin(self.base_url, url)
                 products.append(url)
             else:
-                print("No url found for", title, url)
+                logger.info("No url found for %s %s", title, url)
 
+        logger.info("Found %d product urls", len(products))
         return products
 
     def _get_product_categories(self, soup, product_name):
@@ -120,7 +127,7 @@ class SkinCeuticalsCrawler(CatalogCrawler):
         if uom := soup.find("span", class_="c-variations-carousel__value"):
             uom = uom.text
 
-        return RawCrawledProduct(
+        crawled_product = RawCrawledProduct(
             supplier_sku="",
             manufacturer_sku="",
             name=product_name,
@@ -140,6 +147,13 @@ class SkinCeuticalsCrawler(CatalogCrawler):
             documents=[],
         )
 
+        logger.info(
+            "Collected product details from %s: %s",
+            product_url,
+            pformat(crawled_product.model_dump()),
+        )
+        return crawled_product
+
     async def get_product_from_url(self, url: str) -> RawCrawledProduct | None:
         html = await self._fetch(url)
         soup = BeautifulSoup(html, "html.parser")
@@ -155,5 +169,16 @@ class SkinCeuticalsCrawler(CatalogCrawler):
             product = await self.get_product_from_url(product_url)
             if product:
                 products.append(product)
-            return products
+        return products
+
+    async def run_list_of_all_products_mocked(self) -> List[RawCrawledProduct]:
+        with open("tests/data/all_products.html", "r") as f:
+            html = f.read()
+        soup = BeautifulSoup(html, "html.parser")
+        product_urls = self._get_product_urls(soup)
+        products = []
+        for product_url in product_urls:
+            product = await self.get_product_from_url(product_url)
+            if product:
+                products.append(product)
         return products
